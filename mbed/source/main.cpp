@@ -25,7 +25,7 @@
 
 using namespace std::literals::chrono_literals;
 
-const static char DEVICE_NAME[] = "Button/Megneto";
+const static char DEVICE_NAME[] = "HR/BUT/MAG";
 
 static events::EventQueue event_queue(/* event count */ 16 * EVENTS_EVENT_SIZE);
 
@@ -57,14 +57,7 @@ public:
 
     void start()
     {
-        /* button */
-        _ble.gap().setEventHandler(this);
-
         _ble.init(this, &HeartrateDemo::on_init_complete);
-
-        /* button */
-        _event_queue.call_every(500ms, this, &HeartrateDemo::blink);
-
         _event_queue.dispatch_forever();
     }
 
@@ -79,15 +72,19 @@ private:
 
         print_mac_address();
 
+        /* magneto */
+        BSP_MAGNETO_Init();
+
         /* button */
         _button_service = new ButtonService(_ble, false /* initial value for button pressed */);
         _button.fall(Callback<void()>(this, &HeartrateDemo::button_pressed));
         _button.rise(Callback<void()>(this, &HeartrateDemo::button_released));
+        _event_queue.call_every(500ms, this, &HeartrateDemo::blink);
 
         /* this allows us to receive events like onConnectionComplete() */
         _ble.gap().setEventHandler(this);
 
-        /* heart rate value updated every second */
+        /* sensor value updated every second */
         _event_queue.call_every(
             1000ms,
             [this] {
@@ -109,15 +106,13 @@ private:
 
         _adv_data_builder.setFlags();
         _adv_data_builder.setAppearance(ble::adv_data_appearance_t::GENERIC_HEART_RATE_SENSOR);
+        _adv_data_builder.setName(DEVICE_NAME);
+        /* heartrate */
         _adv_data_builder.setLocalServiceList({&_heartrate_uuid, 1});
-        
         /* button */
         _adv_data_builder.setLocalServiceList(mbed::make_Span(&_button_uuid, 1));
-
         /* magneto */
         _adv_data_builder.setLocalServiceList(mbed::make_Span(&_magneto_uuid, 1));        
-
-        _adv_data_builder.setName(DEVICE_NAME);
 
         /* Setup advertising */
 
@@ -155,11 +150,14 @@ private:
 
     void update_sensor_value()
     {
-        /* you can read in the real value but here we just simulate a value */
-        _heartrate_value++;
-
         /* magneto */
         BSP_MAGNETO_GetXYZ(_magneto_value);
+        _magneto_service.updateMagneto(_magneto_value);
+        /*_magneto_service.updateMagnetoY(_magneto_value[1]);
+        _magneto_service.updateMagnetoZ(_magneto_value[2]);*/
+
+        /* you can read in the real value but here we just simulate a value */
+        _heartrate_value++;
 
         /*  60 <= bpm value < 110 */
         if (_heartrate_value == 110) {
@@ -167,12 +165,6 @@ private:
         }
 
         _heartrate_service.updateHeartRate(_heartrate_value);
-
-
-        /* magneto */
-        _magneto_service.updateMagnetoX(_magneto_value[0]);
-        _magneto_service.updateMagnetoY(_magneto_value[1]);
-        _magneto_service.updateMagnetoZ(_magneto_value[2]);
     }
 
 
@@ -227,6 +219,7 @@ private:
     uint16_t _heartrate_value;
     HeartRateService _heartrate_service;
 
+    /* magneto */
     UUID _magneto_uuid;
     int16_t _magneto_value[3];
     MagnetoService _magneto_service;
@@ -244,7 +237,6 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context)
 int main()
 {
     mbed_trace_init();
-    BSP_MAGNETO_Init();
 
     BLE &ble = BLE::Instance();
     ble.onEventsToProcess(schedule_ble_events);
