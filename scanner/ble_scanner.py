@@ -19,11 +19,30 @@ class ScanDelegate(DefaultDelegate):
 #scanner = Scanner().withDelegate(ScanDelegate())
 
 #
-print("Connecting...")
-dev = Peripheral("e2:da:5e:a1:3b:af", 'random')
-dev.setDelegate(ScanDelegate)
-#
 
+scanner = Scanner().withDelegate(ScanDelegate())
+devices = scanner.scan()
+n = 0
+addr = []
+
+        
+#
+for dev in devices:
+    print("%d:Device %s (%s), RSSI=%d dB"% (n, dev.addr, dev.addrType, dev.rssi))
+    addr.append(dev.addr)
+    n += 1
+    for (adtype, desc, value) in dev.getScanData():
+        print(" %s = %s"%(desc, value))
+
+number = input('Enter your device number:')
+print('Device', number)
+num = int(number)
+print(addr[num])
+print("Connecting...")
+dev = Peripheral(addr[num], 'random')
+dev.setDelegate(ScanDelegate)
+
+#
 print("Services...")
 setup_data = b"\x01\x00"
 for svc in dev.services:
