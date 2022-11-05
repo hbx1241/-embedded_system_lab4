@@ -6,3 +6,4 @@
     - New an empty Mbed OS program, delete the main.cpp
     - copy the files under Mbed to the new project
     - compile and run
+2. run scanner/ble_scanner.py in Raspberry Pi to substitute the role of BLE scanner.
